@@ -114,8 +114,8 @@ def kpi_of_the_sales_group():
             df_trp['КТН ' + str(col_for_total_result[count])] = df_trp['КТН ' + str(col_for_total_result[count])].replace(np.inf, 0)
             count += 1
         # Добавляем доли отгрузок
-        df_trp['Доля на ' + df_trp.columns[1]] = round(df_trp[df_trp.columns[1]] / df_trp.iloc[0, 1], 4) * 100
-        df_trp['Доля на ' + df_trp.columns[13]] = round(df_trp[df_trp.columns[13]] / df_trp.iloc[0, 13], 4) * 100
+        df_trp['Доля на ' + df_trp.columns[1]] = round(df_trp[df_trp.columns[1]] / df_trp.iloc[0, 1], 4)
+        df_trp['Доля на ' + df_trp.columns[13]] = round(df_trp[df_trp.columns[13]] / df_trp.iloc[0, 13], 4)
         df_trp['Отклонение долей'] = df_trp['Доля на ' + df_trp.columns[13]] - df_trp['Доля на ' + df_trp.columns[1]]
         # Добавляем прогноз прироста
         df_trp['Прогноз выполнения'] = round(df_trp[df_trp.columns[1]] / now_working_days * end_working_days, 2)
@@ -169,9 +169,38 @@ def kpi_of_the_sales_group():
         pie_values = df_trp['Доля на ' + df_trp.columns[1]].iloc[1:]
         pie_names = df_trp['Название ТС'].iloc[1:]
         pie_labels = df_trp['Отклонение долей'].iloc[1:]
+        # группируем значения меньше 1%
+        sum_other = 0
+        for i in range(len(pie_values)):
+            if pie_values[i] < 0.03:
+                sum_other += pie_values[i]
+                del pie_names[i]
+                del pie_values[i]
+                del pie_labels[i]
+        # Добавляем групповое значенние
+        pie_values = list(pie_values)
+        pie_values.append(sum_other)
+        pie_names = list(pie_names)
+        pie_names.append('Другие ТР менее 3%')
+        pie_labels = list(pie_labels)
+        pie_labels.append(0)
+        # Добавляем приросты к названию рынка
+        pie_names_and_labels = []
+        for i in range(len(pie_names)):
+            if pie_labels[i] > 0:
+                pie_names_and_labels.append(pie_names[i] + ' (+' + str(round(pie_labels[i] * 100, 2)) + '%)')
+            elif pie_labels[i] < 0:
+                pie_names_and_labels.append(pie_names[i] + ' (' + str(round(pie_labels[i] * 100, 2)) + '%)')
+            else:
+                pie_names_and_labels.append(pie_names[i])
+        pie_names = pie_names_and_labels
+        # выводим график
         fig = px.pie(values=pie_values, names=pie_names, title='Доля по ТР на ' + str(now_date))
+        fig.update_traces(textinfo='label+percent',
+                          hovertemplate='<b>%{label}</b><br>%{value:.2f} тн (%{percent:.1%})',
+                          text=pie_names)
         fig.update_layout(font=dict(size=18))  # увеличиваем шрифт
-        fig.update_layout(height=900)
+        fig.update_layout(height=700)
         return fig
 
 

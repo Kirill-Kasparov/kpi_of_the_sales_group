@@ -9,6 +9,7 @@ import plotly.express as px
 import plotly.graph_objs as go
 
 def kpi_of_the_sales_group():
+    # Собираем базы
     def workind_days():
         # Получаем дату из файла
         creation_time = pd.read_excel('month_otgr.xls', sheet_name='Лист ТРП', header=1, nrows=1)
@@ -133,6 +134,22 @@ def kpi_of_the_sales_group():
 
     # Формируем графики
     options_df_trp = [{'label': i, 'value': i} for i in df_trp['Название ТС'].unique()]
+    def fig_bar_trp_otgr():
+        x_bar_trp_otgr_tr = df_trp.columns[1:14]
+        y_bar_trp_otgr_tr = [round(i, 2) for i in list(df_trp.iloc[0, 1:14] / 1000000)]    # округляем до двух знаков
+        total_result = {'Месяц': x_bar_trp_otgr_tr[::-1], 'Отгрузка, млн. руб.': y_bar_trp_otgr_tr[::-1]}
+        # строим график
+        fig1 = px.line(total_result, x='Месяц', y='Отгрузка, млн. руб.', title='Динамика оборота по месяцам', text='Отгрузка, млн. руб.')
+        fig1.update_layout(font=dict(size=18))  # увеличиваем шрифт
+        return fig1
+    def fig_bar_trp_vp():
+        x_bar_trp_vp = df_trp.columns[14:27]
+        y_bar_trp_vp = [round(i, 2) for i in list(df_trp.iloc[0, 14:27] / 1000000)]    # округляем до двух знаков
+        total_result = {'Месяц': x_bar_trp_vp[::-1], 'Валовая прибыль, млн. руб.': y_bar_trp_vp[::-1]}
+        # строим график
+        fig1 = px.line(total_result, x='Месяц', y='Валовая прибыль, млн. руб.', title='Динамика валовой прибыли по месяцам', text='Валовая прибыль, млн. руб.')
+        fig1.update_layout(font=dict(size=18))  # увеличиваем шрифт
+        return fig1
     def fig_bar_trp_otgr_tr():
         if len(df_trp['Название ТС'].iloc[1:]) > 15:
             top = 12
@@ -202,6 +219,21 @@ def kpi_of_the_sales_group():
         fig.update_layout(font=dict(size=18))  # увеличиваем шрифт
         fig.update_layout(height=700)
         return fig
+    print(df_trp.head(5).to_string())
+
+
+    # Формируем комменты
+    # Для отгрузок
+    text_ob = html.P(children='Оборот отгрузок текущего месяца: ' + str(round(df_trp.iloc[0, 1] / 1000000, 2)) + ' млн. руб.', className="header-description")
+    text_ob1 = html.P(children='Оборот отгрузок в прошлом году: ' + str(round(df_trp.iloc[0, 13] / 1000000, 2)) + ' млн. руб.', className="header-description")
+    text_ob2 = html.P(children='Прошло рабочих дней: ' + str(now_working_days) + " из " + str(end_working_days) + ". Всего раб. дней в прошлом году: " + str(end_working_days_2), className="header-description")
+    text_ob3 = html.P(children='Прогноз оборота: ' + str(round(list(df_trp['Прогноз выполнения'])[0] / 1000000, 2)) + ' млн. руб.', className="header-description")
+    text_ob4 = html.P(children='Прогноз прироста по обороту (ср-дн): ' + str(round(list(df_trp['Прогноз прироста в руб.'])[0] / 1000000, 2)) + ' млн. руб., ' + str(list(df_trp['Прогноз прироста в %'])[0]) + '%', className="header-description")
+    # Для ВП
+    text_vp = html.P(children='Оборот ВП текущего месяца: ' + str(round(df_trp.iloc[0, 14] / 1000000, 2)) + ' млн. руб.', className="header-description")
+    text_vp1 = html.P(children='Оборот ВП в прошлом году: ' + str(round(df_trp.iloc[0, 26] / 1000000, 2)) + ' млн. руб.', className="header-description")
+    text_vp2 = html.P(children='Прогноз ВП: ' + str(round(list(df_trp['Прогноз выполнения ВП'])[0] / 1000000, 2)) + ' млн. руб.', className="header-description")
+    text_vp3 = html.P(children='Прогноз прироста по ВП (ср-дн): ' + str(round(list(df_trp['Прогноз прироста ВП в руб.'])[0] / 1000000, 2)) + ' млн. руб., ' + str(list(df_trp['Прогноз прироста ВП в %'])[0]) + '%', className="header-description")
 
 
     # Создаем Dash
@@ -211,6 +243,14 @@ def kpi_of_the_sales_group():
            'background-size': '1920px 1152px'}, children=[
         # Наполняем дашборд
         html.H1('Анализ отчета "Помесячный оборот по отгрузке, КТН по клиентам и ТС"', className="header-title"),
+        html.Br(),
+        html.H1('Выполнение по обороту', className="header-title"),
+        text_ob, text_ob1, text_ob2, text_ob3, text_ob4,
+        dcc.Graph(figure=fig_bar_trp_otgr()),
+        html.Br(),
+        html.H1('Выполнение по валовой прибыли', className="header-title"),
+        text_vp, text_vp1, text_vp2, text_vp3,
+        dcc.Graph(figure=fig_bar_trp_vp()),
         html.Br(),
         html.H1('Прогноз прироста по ТР', className="header-title"),
         dcc.Graph(figure=fig_bar_trp_otgr_tr()),

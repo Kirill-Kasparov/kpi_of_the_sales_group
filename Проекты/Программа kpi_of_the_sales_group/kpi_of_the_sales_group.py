@@ -117,7 +117,7 @@ def kpi_of_the_sales_group():
         # Добавляем доли отгрузок
         df_trp['Доля на ' + df_trp.columns[1]] = round(df_trp[df_trp.columns[1]] / df_trp.iloc[0, 1], 4)
         df_trp['Доля на ' + df_trp.columns[13]] = round(df_trp[df_trp.columns[13]] / df_trp.iloc[0, 13], 4)
-        df_trp['Отклонение долей'] = df_trp['Доля на ' + df_trp.columns[13]] - df_trp['Доля на ' + df_trp.columns[1]]
+        df_trp['Отклонение долей'] = df_trp['Доля на ' + df_trp.columns[1]] - df_trp['Доля на ' + df_trp.columns[13]]
         # Добавляем прогноз прироста
         df_trp['Прогноз выполнения'] = round(df_trp[df_trp.columns[1]] / now_working_days * end_working_days, 2)
         df_trp['Прогноз прироста в руб.'] = df_trp['Прогноз выполнения'] - round((df_trp[df_trp.columns[13]] / end_working_days_2 * end_working_days), 2)
@@ -127,6 +127,7 @@ def kpi_of_the_sales_group():
             (df_trp[df_trp.columns[26]] / end_working_days_2 * end_working_days), 2)
         df_trp['Прогноз прироста ВП в %'] = round((df_trp['Прогноз выполнения ВП'] / (
                     df_trp[df_trp.columns[26]] / end_working_days_2 * end_working_days) - 1) * 100, 2)
+        df_trp.to_excel('Лист ТРП.xlsx', index=False)
         return df_trp
 
     start_date, start_date_2, now_date, now_date_2, end_date, end_date_2, now_working_days, now_working_days_2, end_working_days, end_working_days_2 = workind_days()
@@ -250,6 +251,21 @@ def kpi_of_the_sales_group():
         text_tr = html.P(children='По приросту:\n' + text_tr1 + '\n' + text_tr2 + '\n' + text_tr3 + '\n\nПо оттоку: \n' + text_tr4 + '\n' + text_tr5 + '\n' + text_tr6,
                          className="header-description", style={'whiteSpace': 'pre-line'})
         return text_tr
+    def text_market_share():
+        df_market = df_trp.sort_values('Отклонение долей')
+        text_negative = ''
+        for i in range(3):
+            if list(df_market['Отклонение долей'])[i] < (-0.01):
+                text_negative += list(df_market['Название ТС'])[i] + ': ' + str(round(list(df_market['Отклонение долей'])[i] * 100, 2)) + '%\n'
+        text_positive = ''
+        for i in range(-1, -4, -1):
+            if list(df_market['Отклонение долей'])[i] > 0.01:
+                text_positive += list(df_market['Название ТС'])[i] + ': ' + str(round(list(df_market['Отклонение долей'])[i] * 100, 2)) + '%\n'
+
+        text_market_share = html.P(children='Ключевые изменения долей рынка:\n' + text_positive + '\n' + text_negative,
+            className="header-description", style={'whiteSpace': 'pre-line'})
+        return text_market_share
+
 
 
     # Создаем Dash
@@ -278,6 +294,8 @@ def kpi_of_the_sales_group():
         dcc.Graph(figure=fig_bar_trp_otgr_tr2()),
         html.Br(),
         html.H1('Доли отгрузки по ТР', className="header-title"),
+        text_market_share(),
+        html.Br(),
         dcc.Graph(id='graph-pie', figure=fig_pie_trp_otgr_tr_now()),
         html.Br(),
         # График отгрузок по ТР

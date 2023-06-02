@@ -127,6 +127,7 @@ def kpi_of_the_sales_group():
             (df_trp[df_trp.columns[26]] / end_working_days_2 * end_working_days), 2)
         df_trp['Прогноз прироста ВП в %'] = round((df_trp['Прогноз выполнения ВП'] / (
                     df_trp[df_trp.columns[26]] / end_working_days_2 * end_working_days) - 1) * 100, 2)
+        df_trp['Прирост КТН'] = df_trp.iloc[:, 27] - df_trp.iloc[:, 39]
         df_trp.to_excel('Лист ТРП.xlsx', index=False)
         return df_trp
 
@@ -265,6 +266,35 @@ def kpi_of_the_sales_group():
         text_market_share = html.P(children='Ключевые изменения долей рынка:\n' + text_positive + '\n' + text_negative,
             className="header-description", style={'whiteSpace': 'pre-line'})
         return text_market_share
+    def text_recom():
+        text_rec = ''
+        # Снижение КТН
+        if df_trp['Прирост КТН'].iloc[0] < -0.01:
+            text_rec += '\n' + 'Сигнал: снижение КТН на ' + str(df_trp['Прирост КТН'].iloc[0]) + '\n\n' + 'Мероприятия:' + '\n'
+            mask = (df_trp.iloc[:, 27] > df_trp.iloc[0, 27]) & (df_trp['Доля на ' + df_trp.columns[1]] > 0.005) & (df_trp['Прогноз прироста в руб.'] < 0)
+            df_ktn = df_trp[mask].sort_values('Прогноз прироста в руб.')
+            if len(df_ktn['Название ТС']) > 0:
+                text_rec += 'Проработать отток по ' + str(list(df_ktn['Название ТС'])[0]) + ' на сумму: ' + str(round(list(df_ktn['Прогноз прироста в руб.'])[0])) + ' руб.\n'
+            mask = (df_trp.iloc[:, 27] < df_trp.iloc[0, 27]) & (df_trp['Доля на ' + df_trp.columns[1]] > 0.005) & (df_trp['Прогноз прироста в руб.'] > 0) & (df_trp['Прирост КТН'] < 0)
+            df_ktn = df_trp[mask].sort_values('Прогноз прироста в руб.')
+            if len(df_ktn['Название ТС']) > 0:
+                text_rec += 'Поднять КТН по ' + str(list(df_ktn['Название ТС'])[-1]) + ' с ' + str(df_ktn.iloc[-1, 27]) + ' до уровня ' + str(df_ktn.iloc[-1, 39]) + '\n'
+        # Угрозы прошлого года
+        middle_sales = (df_trp['Прогноз выполнения'] + df_trp.iloc[:, 2] + df_trp.iloc[:, 3]) / 3
+        mask = ((middle_sales * 1.5) < df_trp.iloc[:, 12]) & (df_trp['Доля на ' + df_trp.columns[1]] > 0.01)
+        df_risk = df_trp[mask].sort_values(df_trp.columns[12])
+        print(df_risk.to_string())
+        if len(df_risk['Название ТС']) > 0:
+            text_rec += '\n' + 'Сигнал: выявлен аномальный оборот по ТР на ' + str(df_risk.columns[12]) + '\n\n' + 'Мероприятия:' + '\n'
+            for i in range(len(df_risk['Название ТС'])):
+                middle_risk = (list(df_risk['Прогноз выполнения'])[i] + df_risk.iloc[i, 2] + df_risk.iloc[i, 3]) / 3
+                text_rec += 'Проработать оборот по ' + str(list(df_risk['Название ТС'])[i]) + ' на сумму ' + str(round(list(df_risk[df_risk.columns[12]])[i])) + ' руб. Прогноз оттока: ' + str(round(middle_risk - list(df_risk[df_risk.columns[12]])[i])) + '\n'
+        # Отношение оборота к ВП
+        # Отгрузка - снижение среднемесячного оборота
+
+        text_rec = html.P(children=text_rec, className="header-description", style={'whiteSpace': 'pre-line'})
+        return text_rec
+
 
 
 
@@ -298,6 +328,10 @@ def kpi_of_the_sales_group():
         html.Br(),
         dcc.Graph(id='graph-pie', figure=fig_pie_trp_otgr_tr_now()),
         html.Br(),
+        html.H1('Рекомендации по развитию', className="header-title"),
+        text_recom(),
+        html.Br(),
+
         # График отгрузок по ТР
         html.H1('Динамика отгрузок по ТР', className="header-title"),
         dcc.Dropdown(id='ts-dropdown', options=options_df_trp, style={'font-size': '24px', 'font-weight': 'bold'},  # передаем список значений в Dropdown

@@ -122,6 +122,7 @@ def kpi_of_the_sales_group():
         df_trp['Прогноз выполнения'] = round(df_trp[df_trp.columns[1]] / now_working_days * end_working_days, 2)
         df_trp['Прогноз прироста в руб.'] = df_trp['Прогноз выполнения'] - round((df_trp[df_trp.columns[13]] / end_working_days_2 * end_working_days), 2)
         df_trp['Прогноз прироста в %'] = round((df_trp['Прогноз выполнения'] / (df_trp[df_trp.columns[13]] / end_working_days_2 * end_working_days) - 1) * 100, 2)
+        df_trp['Отклонение отгрузок по ССП(3 мес)'] = round(df_trp['Прогноз выполнения'] - (df_trp.iloc[:, 2] + df_trp.iloc[:, 3] + df_trp.iloc[:, 4]) / 3)
         df_trp['Прогноз выполнения ВП'] = round(df_trp[df_trp.columns[14]] / now_working_days * end_working_days, 2)
         df_trp['Прогноз прироста ВП в руб.'] = df_trp['Прогноз выполнения ВП'] - round(
             (df_trp[df_trp.columns[26]] / end_working_days_2 * end_working_days), 2)
@@ -268,13 +269,20 @@ def kpi_of_the_sales_group():
         return text_market_share
     def text_recom():
         text_rec = ''
+        # Отгрузка - снижение среднемесячного оборота
+        mask = (df_trp['Доля на ' + df_trp.columns[1]] > 0.01) & (df_trp['Отклонение отгрузок по ССП(3 мес)'] < -100000) & ((df_trp['Отклонение отгрузок по ССП(3 мес)'].abs() / df_trp['Прогноз выполнения']) > 0.25)
+        df_low_sales = df_trp[mask].sort_values('Отклонение отгрузок по ССП(3 мес)')
+        if len(df_low_sales['Название ТС']) > 0:
+            text_rec += '\nСигнал: отклонение прогноза отгрузки от ССП за 3 мес \n\n Мероприятия: \n'
+            for i in range(len(df_low_sales['Название ТС'])):
+                text_rec += 'Прогноз оттока по ' + str(list(df_low_sales['Название ТС'])[i]) + ' на сумму ' + str(round(list(df_low_sales['Отклонение отгрузок по ССП(3 мес)'])[i])) + '\n'
         # Снижение КТН
         if df_trp['Прирост КТН'].iloc[0] < -0.01:
-            text_rec += '\n' + 'Сигнал: снижение КТН на ' + str(df_trp['Прирост КТН'].iloc[0]) + '\n\n' + 'Мероприятия:' + '\n'
+            text_rec += '\nСигнал: снижение КТН на ' + str(df_trp['Прирост КТН'].iloc[0]) + '\n\nМероприятия:\n'
             mask = (df_trp.iloc[:, 27] > df_trp.iloc[0, 27]) & (df_trp['Доля на ' + df_trp.columns[1]] > 0.005) & (df_trp['Прогноз прироста в руб.'] < 0)
             df_ktn = df_trp[mask].sort_values('Прогноз прироста в руб.')
             if len(df_ktn['Название ТС']) > 0:
-                text_rec += 'Проработать отток по ' + str(list(df_ktn['Название ТС'])[0]) + ' на сумму: ' + str(round(list(df_ktn['Прогноз прироста в руб.'])[0])) + ' руб.\n'
+                text_rec += 'Проработать отток по ' + str(list(df_ktn['Название ТС'])[0]) + ' на сумму: ' + str(round(list(df_ktn['Прогноз прироста в руб.'])[0])) + ' руб.' + ', КТН ' + str(df_ktn.iloc[0, 39]) + '\n'
             mask = (df_trp.iloc[:, 27] < df_trp.iloc[0, 27]) & (df_trp['Доля на ' + df_trp.columns[1]] > 0.005) & (df_trp['Прогноз прироста в руб.'] > 0) & (df_trp['Прирост КТН'] < 0)
             df_ktn = df_trp[mask].sort_values('Прогноз прироста в руб.')
             if len(df_ktn['Название ТС']) > 0:
@@ -283,14 +291,12 @@ def kpi_of_the_sales_group():
         middle_sales = (df_trp['Прогноз выполнения'] + df_trp.iloc[:, 2] + df_trp.iloc[:, 3]) / 3
         mask = ((middle_sales * 1.5) < df_trp.iloc[:, 12]) & (df_trp['Доля на ' + df_trp.columns[1]] > 0.01)
         df_risk = df_trp[mask].sort_values(df_trp.columns[12])
-        print(df_risk.to_string())
         if len(df_risk['Название ТС']) > 0:
             text_rec += '\n' + 'Сигнал: выявлен аномальный оборот по ТР на ' + str(df_risk.columns[12]) + '\n\n' + 'Мероприятия:' + '\n'
             for i in range(len(df_risk['Название ТС'])):
                 middle_risk = (list(df_risk['Прогноз выполнения'])[i] + df_risk.iloc[i, 2] + df_risk.iloc[i, 3]) / 3
                 text_rec += 'Проработать оборот по ' + str(list(df_risk['Название ТС'])[i]) + ' на сумму ' + str(round(list(df_risk[df_risk.columns[12]])[i])) + ' руб. Прогноз оттока: ' + str(round(middle_risk - list(df_risk[df_risk.columns[12]])[i])) + '\n'
         # Отношение оборота к ВП
-        # Отгрузка - снижение среднемесячного оборота
 
         text_rec = html.P(children=text_rec, className="header-description", style={'whiteSpace': 'pre-line'})
         return text_rec
